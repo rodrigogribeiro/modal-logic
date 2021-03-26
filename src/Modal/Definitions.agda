@@ -8,6 +8,8 @@ open import Data.List
 open import Data.Nat
 open import Data.List
 open import Data.List.Membership.Propositional
+open import Data.List.Relation.Binary.Permutation.Propositional
+open import Data.List.Relation.Binary.Permutation.Propositional.Properties
 open import Data.List.Relation.Unary.All
 open import Data.List.Relation.Unary.All.Properties
 open import Data.List.Relation.Unary.Any
@@ -89,14 +91,51 @@ variable Γ : Theory n
 variable l : Level
 variable M : Model l
 
+-- if something is in a theory then it is provable
+
 exact-deduction : ∀ {φ : Form n} → φ ∈ Γ → M ∶ Γ ⊢ φ
 exact-deduction (here refl) (px ∷ M⊨Γ) = px
 exact-deduction (there p) (px ∷ M⊨Γ) = exact-deduction p M⊨Γ
 
-
 reflexive-deduction : ∀ {φ : Form n} → M ∶ (φ ∷ Γ) ⊢ φ
 reflexive-deduction M⊨Γ  = exact-deduction (here refl) M⊨Γ
 
+-- spliting a theory
 
 theory-union-split : ∀ {δ : Theory n} → M ⊨ (Γ ++ δ) → M ⊨ Γ × M ⊨ δ
 theory-union-split M⊨Γ++δ = ++⁻ _ M⊨Γ++δ
+
+-- deduction is transitive
+
+transitive-deduction : ∀ {φ ψ ϕ δ} → M ∶ φ ∷ Γ ⊢ ψ →
+                                     M ∶ ψ ∷ δ ⊢ ϕ →
+                                     M ∶ (φ ∷ Γ ++ δ) ⊢ ϕ
+transitive-deduction {δ = δ} M⊨φ∷Γ⊢ψ M⊨ψ∷δ⊢ϕ M⊨ψ∷Γ++δ with theory-union-split {δ = δ} M⊨ψ∷Γ++δ
+...| M⊨ψ∷Γ , M⊨δ = M⊨ψ∷δ⊢ϕ (M⊨φ∷Γ⊢ψ M⊨ψ∷Γ ∷ M⊨δ)
+
+
+-- exchange property
+
+exchange : ∀ {φ ψ ϕ} → M ∶ (φ ∷ ψ ∷ Γ) ⊢ ϕ → M ∶ (ψ ∷ φ ∷ Γ) ⊢ ϕ
+exchange M∶φ∷ψ∷Γ⊢ϕ (px ∷ px₁ ∷ M⊨ψφΓ) = M∶φ∷ψ∷Γ⊢ϕ (px₁ ∷ px ∷ M⊨ψφΓ)
+
+-- lifting permutations to membership
+
+permutation-∈ : ∀ {A : Set l}{xs ys : List A} →
+                xs ↭ ys → ∀ {p : A} → (p ∈ xs → p ∈ ys) × (p ∈ ys → p ∈ xs)
+permutation-∈ xs⇔ys = ∈-resp-↭ xs⇔ys , ∈-resp-↭ (↭-sym xs⇔ys)
+
+
+-- derivation is preserved by permutations
+
+transpose-deduction : ∀ {δ φ} → Γ ↭ δ → M ∶ Γ ⊢ φ → M ∶ δ ⊢ φ
+transpose-deduction refl M∶Γ⊢φ M⊨δ = M∶Γ⊢φ M⊨δ
+transpose-deduction (prep x Γ⇔δ) M∶Γ⊢φ (px ∷ M⊨δ)
+  = M∶Γ⊢φ (px ∷ All-resp-↭ (↭-sym Γ⇔δ) M⊨δ)
+transpose-deduction (_↭_.swap x y Γ⇔δ) M∶Γ⊢φ (px ∷ px₁ ∷ M⊨δ)
+  = M∶Γ⊢φ (px₁ ∷ px ∷ All-resp-↭ (↭-sym Γ⇔δ) M⊨δ)
+transpose-deduction (_↭_.trans Γ⇔δ Γ⇔δ₁) M∶Γ⊢φ M⊨δ with All-resp-↭ (↭-sym Γ⇔δ₁) M⊨δ
+...| M⊨ys = M∶Γ⊢φ (All-resp-↭ (↭-sym Γ⇔δ) M⊨ys)
+
+idempotence : ∀ {φ ψ} → M ∶ φ ∷ φ ∷ Γ ⊢ ψ → M ∶ φ ∷ Γ ⊢ ψ
+idempotence MφφΓ⊢ψ (px ∷ M⊨φΓ) = MφφΓ⊢ψ (px ∷ px ∷ M⊨φΓ)
