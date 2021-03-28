@@ -5,7 +5,7 @@ module Modal.Definitions where
 open import Data.Empty
 open import Data.Fin
 open import Data.List
-open import Data.Nat
+open import Data.Nat hiding (_⊔_)
 open import Data.List
 open import Data.List.Membership.Propositional
 open import Data.List.Relation.Binary.Permutation.Propositional
@@ -17,7 +17,7 @@ open import Data.Product
 open import Data.Sum
 open import Level renaming (suc to lsuc)
 open import Relation.Nullary
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality hiding ([_])
 
 -- definition of formulas
 
@@ -139,3 +139,61 @@ transpose-deduction (_↭_.trans Γ⇔δ Γ⇔δ₁) M∶Γ⊢φ M⊨δ with All
 
 idempotence : ∀ {φ ψ} → M ∶ φ ∷ φ ∷ Γ ⊢ ψ → M ∶ φ ∷ Γ ⊢ ψ
 idempotence MφφΓ⊢ψ (px ∷ M⊨φΓ) = MφφΓ⊢ψ (px ∷ px ∷ M⊨φΓ)
+
+
+-- monotonicity (aka weakening)
+
+monotonicity : ∀ {δ φ} → M ∶ Γ ⊢ φ → M ∶ (Γ ++ δ) ⊢ φ
+monotonicity M∶Γ⊢φ M⊨Γ++δ = M∶Γ⊢φ (proj₁ (theory-union-split M⊨Γ++δ))
+
+
+-- frame properties
+
+
+Reflexivity-Frame : Frame l → Set l
+Reflexivity-Frame F = ∀ w → R F w w
+
+Transitivity-Frame : Frame l → Set l
+Transitivity-Frame F
+  = ∀ w w' w'' → R F w w'
+               → R F w' w''
+               → R F w w''
+
+Symmetry-Frame : Frame l → Set l
+Symmetry-Frame F
+  = ∀ w w' → R F w w'
+           → R F w' w
+
+
+Euclidean-Frame : Frame l → Set l
+Euclidean-Frame F
+  = ∀ w w' w'' → R F w w'
+               → R F w w''
+               → R F w' w''
+
+Serial-Frame : Frame l → Set l
+Serial-Frame F
+  = ∀ w → ∃ (λ w' → R F w w')
+
+Functional-Frame : Frame l → Set l
+Functional-Frame F
+  = ∀ w w' w'' → R F w w'
+               → R F w w''
+               → w' ≡ w''
+
+Dense-Frame : Frame l → Set l
+Dense-Frame F
+  = ∀ w w' → ∃ (λ w'' → R F w w' → R F w w'' × R F w' w'')
+
+
+Convergent-Frame : Frame l → Set l
+Convergent-Frame F
+  = ∀ w x y → ∃ (λ z → (R F w x × R F w y) → (R F x z × R F y z))
+
+-- definitions of entailment and equivalence
+
+_⊫_ : ∀ {l n} → Theory n → Form n → Set (lsuc l)
+_⊫_ {l}{n} Γ φ = ∀ (M : Model l) → M ⊨ Γ → M ⊩ φ
+
+_≡M_ : ∀ {l n} → Form n → Form n → Set (lsuc l)
+_≡M_ {l}{n} φ ψ = ( _⊫_ {l}{n} [ φ ] ψ) × (_⊫_ {l} [ ψ ] φ)
